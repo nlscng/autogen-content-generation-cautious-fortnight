@@ -3,6 +3,7 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 import asyncio
 import os
 
+
 async def main():
     model = OpenAIChatCompletionClient(
         model="gpt-4.1",
@@ -19,3 +20,6 @@ async def main():
         content that meets the criteria set by the critic agent and SEO critic agent.""",
         model_client = model
     )
+    ## We will try the Selector group chat pattern from autogen_agentchat, instead of
+    ## previously used round robin group chat pattern.
+    ## https://microsoft.github.io/autogen/stable//user-guide/agentchat-user-guide/selector-group-chat.html
