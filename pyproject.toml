@@ -8,6 +8,6 @@ dependencies = [
     "asyncio>=4.0.0",
     "autogen-agentchat==0.6.2",
     "autogen-core==0.6.2",
-    "autogen-ext==0.6.2",
+    "autogen-ext[openai]==0.6.2",
     "streamlit>=1.51.0",
 ]
