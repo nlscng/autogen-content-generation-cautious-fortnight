@@ -1,5 +1,8 @@
 from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_agentchat.teams import SelectorGroupChat
+from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
+from autogen_agentchat.ui import Console
 import asyncio
 import os
 
@@ -17,7 +20,9 @@ async def main():
         critic agent, and an SEO critic agent. These agents will provide feedback
         and score your content. You should address their feedback and improve your 
         content based on their suggestions. Your goal is to produce high-quality
-        content that meets the criteria set by the critic agent and SEO critic agent.""",
+        content that meets the criteria set by the critic agent and SEO critic agent.
+        If both of the critic agents give you a minimum score of 9 in all the scores,
+        you should regenerate the content, and then you should exactly say 'TERMINATE'.""",
         model_client = model
     )
     ## We will try the Selector group chat pattern from autogen_agentchat, instead of
@@ -41,6 +46,35 @@ async def main():
         by the writer agent.""", 
         system_message="""You are an SEO critic agent. You will be given a piece of text and you need to
         provide scores from 0 to 10 on the SEO of the text. You should also provide a to-do list of improvements
-        for the writer agent to improve the SEO of the text. You should never write the text yourself. Be """
+        for the writer agent to improve the SEO of the text. You should never write the text yourself. Be """,
         model_client = model
     )
+
+    selector_prompt = """You are in a team of content generation agents. The following roles are
+    available: {roles}. 
+    
+    Read the following conversation. Then select the next role from {participants}
+    to speak. Only return the role.
+    
+    {history}
+    
+    If a critic agent has some to-do list for the writer agent, the writer agent should address it in
+    the next message and that same critic agent should review the writer agent's message afterwards.
+
+    Read the above conversation. Then select the next role from {participants} to speak. Only return the 
+    role."""
+
+    termination = TextMentionTermination(text="TERMINATE") | MaxMessageTermination(max_messages=15)
+
+    team = SelectorGroupChat(
+        participants=[writer_agent, content_critic_agent, seo_critic_agent],
+        model_client=model,
+        selector_prompt=selector_prompt,
+        termination_condition=termination
+    )
+
+    task = "Write a short paragraph about the importance of AI in modern technology."
+    await Console(team.run_stream(task=task))
+
+if __name__ == "__main__":
+    asyncio.run(main())
