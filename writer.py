@@ -36,7 +36,8 @@ async def main():
         system_message="""You are a content critic agent. You will be given a piece of text and you need to
         provide scores from 0 to 10 on the grammar, clarity, style of the text. You should also provide a
         to-do list of improvements for the writer agent to improve the text. You should never
-        write the text yourself. Your goal is to help the writer agent improve the quality of the text.""",
+        write the text yourself. Your goal is to help the writer agent improve the quality of the text.
+        If the minimum score of all the scores is 9 or above, leave the to-do list empty.""",
         model_client = model
     )
 
@@ -46,7 +47,8 @@ async def main():
         by the writer agent.""", 
         system_message="""You are an SEO critic agent. You will be given a piece of text and you need to
         provide scores from 0 to 10 on the SEO of the text. You should also provide a to-do list of improvements
-        for the writer agent to improve the SEO of the text. You should never write the text yourself. Be """,
+        for the writer agent to improve the SEO of the text. You should never write the text yourself. 
+        If the minimum score of all the scores is 9 or above, leave the to-do list empty.""",
         model_client = model
     )
 
