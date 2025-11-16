@@ -1,10 +1,23 @@
 from autogen_agentchat.agents import AssistantAgent
+from autogen_agentchat.messages import StructuredMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.teams import SelectorGroupChat
 from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
 from autogen_agentchat.ui import Console
 import asyncio
 import os
+import pydantic
+from pydantic import BaseModel
+
+class ContentFeedback(BaseModel):
+    grammar: int
+    clarity: int
+    style: int
+    todo: str
+
+class SEOFeedback(BaseModel):
+    seo_score: int
+    todo: str
 
 
 async def main():
@@ -14,6 +27,8 @@ async def main():
     )
     writer_agent = AssistantAgent(
         name="writer_agent",
+        description="""A writer agent that writes content and improve the written content based on 
+        the given topic and feedback from the critic agents.""",
         system_message=
         """You are a writer agent. You will be given a topic, and you need to write
         some content based on the topic. You will be collaborating with a content
@@ -38,7 +53,8 @@ async def main():
         to-do list of improvements for the writer agent to improve the text. You should never
         write the text yourself. Your goal is to help the writer agent improve the quality of the text.
         If the minimum score of all the scores is 9 or above, leave the to-do list empty.""",
-        model_client = model
+        model_client = model,
+        output_content_type=ContentFeedback
     )
 
     seo_critic_agent = AssistantAgent(
@@ -49,7 +65,8 @@ async def main():
         provide scores from 0 to 10 on the SEO of the text. You should also provide a to-do list of improvements
         for the writer agent to improve the SEO of the text. You should never write the text yourself. 
         If the minimum score of all the scores is 9 or above, leave the to-do list empty.""",
-        model_client = model
+        model_client = model,
+        output_content_type=SEOFeedback
     )
 
     selector_prompt = """You are in a team of content generation agents. The following roles are
@@ -72,7 +89,8 @@ async def main():
         participants=[writer_agent, content_critic_agent, seo_critic_agent],
         model_client=model,
         selector_prompt=selector_prompt,
-        termination_condition=termination
+        termination_condition=termination,
+        custom_message_types=[StructuredMessage[ContentFeedback], StructuredMessage[SEOFeedback]]
     )
 
     task = "Write a short paragraph about the importance of AI in modern technology."
