@@ -8,6 +8,8 @@ from autogen_agentchat.base import TerminationCondition, TerminatedException
 from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage, StopMessage, ToolCallExecutionEvent
 from autogen_core import Component
 
+from typing import Sequence, Self
+
 import asyncio
 import os
 import pydantic
@@ -23,6 +25,48 @@ class SEOFeedback(BaseModel):
     seo_score: int
     todo: str
 
+class ScoreTerminationConfig(BaseModel):
+    mix_score_threshold: int
+
+class ScoreTerminationCondtion(TerminationCondition, Component[ScoreTerminationConfig]):
+    def __int__(self, min_score_threshold: int = 8):
+        self.min_score_threshold = min_score_threshold
+        self._terminated = False
+        self.min_content_score = 0
+        self.min_seo_score = 0
+    
+    @property
+    def terminated(self) -> bool:
+        return self._terminated
+
+    async def __call(self, messages: Sequence[BaseAgentEvent | BaseChatMessage]) -> StopMessage | None:
+        if self._terminated:
+            raise TerminatedException("Termination condition already met.")
+        for message in messages:
+            if isinstance(message, ToolCallExecutionEvent):
+                if execution in message.content:
+                    if execution.name == self._function_name:
+                        self._terminated = True
+                        result = execution.result
+                        return StopMessage(
+                            content=f"Function '{self._function_name}' was executed.",
+                            source="FunctionCallTermination",
+                        )
+        return None
+    
+    async def reset(self) -> None:
+        self._terminated = False
+
+    def _to_config(self) -> ScoreTerminationConfig:
+        return ScoreTerminationConfig(
+            function_name=self._function_name,
+        )
+
+    @classmethod
+    def _from_config(cls, config: ScoreTerminationConfig) -> Self:
+        return cls(
+            function_name=config.function_name,
+        )
 
 async def main():
     model = OpenAIChatCompletionClient(
