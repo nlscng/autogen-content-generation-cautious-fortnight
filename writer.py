@@ -16,9 +16,9 @@ import pydantic
 from pydantic import BaseModel
 
 class ContentFeedback(BaseModel):
-    grammar: int
-    clarity: int
-    style: int
+    grammar_score: int
+    clarity_score: int
+    style_score: int
     todo: str
 
 class SEOFeedback(BaseModel):
@@ -43,7 +43,15 @@ class ScoreTerminationCondtion(TerminationCondition, Component[ScoreTerminationC
         if self._terminated:
             raise TerminatedException("Termination condition already met.")
         for message in messages:
-            if isinstance(message, ToolCallExecutionEvent):
+            if message.source == "content_critic_agent":
+                self.min_content_score = min(
+                    message.content.grammar,
+                    message.content.clarity,
+                    message.content.style
+                )
+            elif message.source == "seo_critic_agent":
+                self.min_seo_score = message.content.seo_score
+            
                 if execution in message.content:
                     if execution.name == self._function_name:
                         self._terminated = True
