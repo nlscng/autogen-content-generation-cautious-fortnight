@@ -46,9 +46,9 @@ class ScoreTerminationCondition(TerminationCondition, Component[ScoreTermination
         for message in messages:
             if message.source == "content_critic_agent":
                 self.min_content_score = min(
-                    message.content.grammar,
-                    message.content.clarity,
-                    message.content.style
+                    message.content.grammar_score,
+                    message.content.clarity_score,
+                    message.content.style_score,
                 )
             elif message.source == "seo_critic_agent":
                 self.seo_score = message.content.seo_score
