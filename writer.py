@@ -26,10 +26,11 @@ class SEOFeedback(BaseModel):
     todo: str
 
 class ScoreTerminationConfig(BaseModel):
-    mix_score_threshold: int
+    min_score_threshold: int
 
-class ScoreTerminationCondtion(TerminationCondition, Component[ScoreTerminationConfig]):
-    def __int__(self, min_score_threshold: int = 8):
+
+class ScoreTerminationCondition(TerminationCondition, Component[ScoreTerminationConfig]):
+    def __init__(self, min_score_threshold: int = 8):
         self.min_score_threshold = min_score_threshold
         self._terminated = False
         self.min_content_score = 0
@@ -39,7 +40,7 @@ class ScoreTerminationCondtion(TerminationCondition, Component[ScoreTerminationC
     def terminated(self) -> bool:
         return self._terminated
 
-    async def __call(self, messages: Sequence[BaseAgentEvent | BaseChatMessage]) -> StopMessage | None:
+    async def __call__(self, messages: Sequence[BaseAgentEvent | BaseChatMessage]) -> StopMessage | None:
         if self._terminated:
             raise TerminatedException("Termination condition already met.")
         for message in messages:
@@ -50,16 +51,14 @@ class ScoreTerminationCondtion(TerminationCondition, Component[ScoreTerminationC
                     message.content.style
                 )
             elif message.source == "seo_critic_agent":
-                self.min_seo_score = message.content.seo_score
+                self.seo_score = message.content.seo_score
             
-                if execution in message.content:
-                    if execution.name == self._function_name:
-                        self._terminated = True
-                        result = execution.result
-                        return StopMessage(
-                            content=f"Function '{self._function_name}' was executed.",
-                            source="FunctionCallTermination",
-                        )
+            if self.min_content_score >= self.min_score_threshold and self.min_seo_score >= self.min_score_threshold:
+                self._terminated = True
+                return StopMessage(
+                    content=f"The minimum scores have been met: content score {self.min_content_score}, SEO score {self.min_seo_score}. Terminating the chat.",
+                    source="FunctionCallTermination",
+                )
         return None
     
     async def reset(self) -> None:
@@ -67,13 +66,13 @@ class ScoreTerminationCondtion(TerminationCondition, Component[ScoreTerminationC
 
     def _to_config(self) -> ScoreTerminationConfig:
         return ScoreTerminationConfig(
-            function_name=self._function_name,
+            min_score_threshold=self.min_score_threshold,
         )
 
     @classmethod
     def _from_config(cls, config: ScoreTerminationConfig) -> Self:
         return cls(
-            function_name=config.function_name,
+            min_score_threshold=config.min_score_threshold,
         )
 
 async def main():
@@ -139,7 +138,7 @@ async def main():
     Read the above conversation. Then select the next role from {participants} to speak. Only return the 
     role."""
 
-    termination = TextMentionTermination(text="TERMINATE") | MaxMessageTermination(max_messages=15)
+    termination = ScoreTerminationCondition(min_score_threshold = 8) | MaxMessageTermination(max_messages=15)
 
     team = SelectorGroupChat(
         participants=[writer_agent, content_critic_agent, seo_critic_agent],
