@@ -5,7 +5,8 @@ from autogen_agentchat.teams import SelectorGroupChat
 from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
 from autogen_agentchat.ui import Console
 from autogen_agentchat.base import TerminationCondition, TerminatedException
-from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage, StopMessage, ToolCallExecutionEvent
+from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage, StopMessage
+from autogen_agentchat.base import TaskResult
 from autogen_core import Component
 
 from typing import Sequence, Self
@@ -75,7 +76,7 @@ class ScoreTerminationCondition(TerminationCondition, Component[ScoreTermination
             min_score_threshold=config.min_score_threshold,
         )
 
-async def main():
+def teamConfig(min_score_threshold: int = 8) -> SelectorGroupChat:
     model = OpenAIChatCompletionClient(
         model="gpt-4.1",
         api_key=os.getenv("OPENAI_API_KEY"),
@@ -85,13 +86,13 @@ async def main():
         description="""A writer agent that writes content and improve the written content based on 
         the given topic and feedback from the critic agents.""",
         system_message=
-        """You are a writer agent. You will be given a topic, and you need to write
+        f"""You are a writer agent. You will be given a topic, and you need to write
         some content based on the topic. You will be collaborating with a content
         critic agent, and an SEO critic agent. These agents will provide feedback
         and score your content. You should address their feedback and improve your 
         content based on their suggestions. Your goal is to produce high-quality
         content that meets the criteria set by the critic agent and SEO critic agent.
-        If both of the critic agents give you a minimum score of 9 in all the scores,
+        If both of the critic agents give you a minimum score of {min_score_threshold} in all the scores,
         you should regenerate the content, and then you should exactly say 'TERMINATE'.""",
         model_client = model
     )
@@ -103,11 +104,11 @@ async def main():
         name="content_critic_agent",
         description="""A content-critic agent that provides feedback on the content written 
         by the writer agent.""",
-        system_message="""You are a content critic agent. You will be given a piece of text and you need to
+        system_message=f"""You are a content critic agent. You will be given a piece of text and you need to
         provide scores from 0 to 10 on the grammar, clarity, style of the text. You should also provide a
         to-do list of improvements for the writer agent to improve the text. You should never
         write the text yourself. Your goal is to help the writer agent improve the quality of the text.
-        If the minimum score of all the scores is 9 or above, leave the to-do list empty.""",
+        If the minimum score of all the scores is {min_score_threshold} or above, leave the to-do list empty.""",
         model_client = model,
         output_content_type=ContentFeedback
     )
@@ -116,10 +117,10 @@ async def main():
         name="seo_critic_agent",
         description="""An SEO-critic agent that provides feedback on the SEO aspects of the content written
         by the writer agent.""", 
-        system_message="""You are an SEO critic agent. You will be given a piece of text and you need to
+        system_message=f"""You are an SEO critic agent. You will be given a piece of text and you need to
         provide scores from 0 to 10 on the SEO of the text. You should also provide a to-do list of improvements
         for the writer agent to improve the SEO of the text. You should never write the text yourself. 
-        If the minimum score of all the scores is 9 or above, leave the to-do list empty.""",
+        If the minimum score of all the scores is {min_score_threshold} or above, leave the to-do list empty.""",
         model_client = model,
         output_content_type=SEOFeedback
     )
@@ -148,8 +149,29 @@ async def main():
         custom_message_types=[StructuredMessage[ContentFeedback], StructuredMessage[SEOFeedback]]
     )
 
+    return team
+
+async def orchetrate(team, task):
+    async for message in team.run_stream(task=task):
+        if not isinstance(message, TaskResult):
+            print('--- New Message ---')
+            if message.source == "writer_agent":
+                print(msg:= f'{message.source}: {message.content}')
+                yield msg
+            elif message.source == "content_critic_agent":
+                print(msg:= f'{message.source} - {message.content}')
+                # print(msg:= f'{message.source} - Grammar Score: {message.content.grammar_score}, Clarity Score: {message.content.clarity_score}, Style Score: {message.content.style_score}, To-Do: {message.content.todo}')
+                yield msg
+            elif message.source == "seo_critic_agent":
+                print(msg:= f'{message.source} - SEO Score: {message.content.seo_score}, To-Do: {message.content.todo}')
+                yield msg
+
+async def main():
     task = "Write a short paragraph about the importance of AI in modern technology."
-    await Console(team.run_stream(task=task))
+    # await Console(team.run_stream(task=task))
+    team = teamConfig(min_score_threshold=8)
+    async for message in orchetrate(team, task):
+        pass
 
 if __name__ == "__main__":
     asyncio.run(main())
