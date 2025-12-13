@@ -156,14 +156,21 @@ async def orchetrate(team, task):
         if not isinstance(message, TaskResult):
             print('--- New Message ---')
             if message.source == "writer_agent":
-                print(msg:= f'{message.source}: {message.content}')
+                print(msg:= f'**Writer**: {message.content}')
                 yield msg
             elif message.source == "content_critic_agent":
-                print(msg:= f'{message.source} - {message.content}')
+                # print(msg:= f'{message.source} - {message.content}')
                 # print(msg:= f'{message.source} - Grammar Score: {message.content.grammar_score}, Clarity Score: {message.content.clarity_score}, Style Score: {message.content.style_score}, To-Do: {message.content.todo}')
+                print(msg:=f'**Content Critic**:\n\n**Gramar Score**:" {message.content.grammar_score},\n\n**Clarity Score**: {message.content.clarity_score},\n\n**Style Score**: {message.content.style_score},\n\n**To-Do:** {message.content.todo}')
                 yield msg
             elif message.source == "seo_critic_agent":
-                print(msg:= f'{message.source} - SEO Score: {message.content.seo_score}, To-Do: {message.content.todo}')
+                print(msg:=f'**SEO Critic**:\n\n**Gramar Score**:" {message.content.seo_score},\n\n**To-Do**:{message.content.todo}')
+                yield msg
+            elif message.source == "user":
+                print(msg:= f'**User**:\n\n{message.content}')
+                yield msg
+            elif message.source == "ScoreTermination":
+                print(msg:= f'**Termination**:\n\n{message.content}')
                 yield msg
 
 async def main():

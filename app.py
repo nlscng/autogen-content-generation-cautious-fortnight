@@ -13,14 +13,20 @@ if prompt:
         team = teamConfig(min_score_threshold=8)
         with chat:
             async for message in orchetrate(team, prompt):
-                if message.startswith("writer_agent"):
+                if message.startswith("**Writer**"):
                     with st.chat_message("ai"):
                         st.markdown(message)
-                elif message.startswith("content_critic_agent"):
+                elif message.startswith("**Content Critic**"):
                     with st.chat_message("human"):
                         st.markdown(message)
-                elif message.startswith("seo_critic_agent"):
+                elif message.startswith("**SEO Critic**"):
                     with st.chat_message("human"):
+                        st.markdown(message)
+                elif message.startswith("**User**"):
+                    with st.chat_message("user"):
+                        st.markdown(message)
+                elif message.startswith('**Termination**'):
+                    with st.chat_message("ai"):
                         st.markdown(message)
                     
     with st.spinner("Agents are working..."):
